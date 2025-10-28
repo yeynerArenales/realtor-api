@@ -1,0 +1,39 @@
+## Ignore Visual Studio temporary files, build results
+bin/
+obj/
+*.user
+*.suo
+*.vs
+.vs/
+launchSettings.json
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.exe
+*.pdb
+
+## Visual Studio
+.vs/
+
+## User-specific files
+*.rsuser
+
+## .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+## NuGet Packages
+*.nupkg
+**/packages/*
+*.nuget.props
+*.nuget.targets
+
+## Rider
+.idea/
+*.sln.iml
+
+## VS Code
+.vscode/
