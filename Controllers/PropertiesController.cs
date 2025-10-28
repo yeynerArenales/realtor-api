@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using realtorAPI.DTOs;
 using realtorAPI.Services;
+using realtorAPI.Helpers;
 
 namespace realtorAPI.Controllers
 {
@@ -16,24 +17,21 @@ namespace realtorAPI.Controllers
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(List<PropertyResponseDto>), 200)]
-        public async Task<ActionResult<List<PropertyResponseDto>>> GetProperties([FromQuery] PropertyFilterDto filter)
+        public async Task<ActionResult<ApiResponse<List<PropertyResponseDto>>>> GetProperties([FromQuery] PropertyFilterDto filter)
         {
             try
             {
                 var properties = await _propertyService.GetPropertiesAsync(filter);
-                return Ok(properties);
+                return Ok(ApiResponse<List<PropertyResponseDto>>.Success(properties, "Properties retrieved successfully"));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error retrieving properties", error = ex.Message });
+                return StatusCode(500, ApiResponse<List<PropertyResponseDto>>.Error("Error retrieving properties", ex.Message));
             }
         }
 
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(PropertyResponseDto), 200)]
-        [ProducesResponseType(404)]
-        public async Task<ActionResult<PropertyResponseDto>> GetPropertyById(string id)
+        public async Task<ActionResult<ApiResponse<PropertyResponseDto>>> GetPropertyById(string id)
         {
             try
             {
@@ -41,48 +39,46 @@ namespace realtorAPI.Controllers
 
                 if (property == null)
                 {
-                    return NotFound(new { message = $"Property with id {id} not found" });
+                    return NotFound(ApiResponse<PropertyResponseDto>.Error($"Property with id {id} not found"));
                 }
 
-                return Ok(property);
+                return Ok(ApiResponse<PropertyResponseDto>.Success(property, "Property retrieved successfully"));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error retrieving property", error = ex.Message });
+                return StatusCode(500, ApiResponse<PropertyResponseDto>.Error("Error retrieving property", ex.Message));
             }
         }
 
         [HttpPost]
-        [ProducesResponseType(typeof(PropertyResponseDto), 201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(404)]
-        public async Task<ActionResult<PropertyResponseDto>> CreateProperty([FromBody] PropertyCreateDto createDto)
+        public async Task<ActionResult<ApiResponse<PropertyResponseDto>>> CreateProperty([FromBody] PropertyCreateDto createDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.GetErrors();
+                    return BadRequest(ApiResponse<PropertyResponseDto>.Error("Invalid model state", errors));
                 }
 
                 var property = await _propertyService.CreatePropertyAsync(createDto);
 
                 if (property == null)
                 {
-                    return NotFound(new { message = "Owner not found" });
+                    return NotFound(ApiResponse<PropertyResponseDto>.Error("Owner not found"));
                 }
 
-                return CreatedAtAction(nameof(GetPropertyById), new { id = property.Id }, property);
+                return CreatedAtAction(nameof(GetPropertyById), new { id = property.Id }, 
+                    ApiResponse<PropertyResponseDto>.Success(property, "Property created successfully"));
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(ApiResponse<PropertyResponseDto>.Error(ex.Message));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error creating property", error = ex.Message });
+                return StatusCode(500, ApiResponse<PropertyResponseDto>.Error("Error creating property", ex.Message));
             }
         }
     }
 }
-

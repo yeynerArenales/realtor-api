@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using realtorAPI.DTOs;
 using realtorAPI.Services;
+using realtorAPI.Helpers;
 
 namespace realtorAPI.Controllers
 {
@@ -16,66 +17,64 @@ namespace realtorAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<OwnerResponseDto>>> GetOwners()
+        public async Task<ActionResult<ApiResponse<List<OwnerResponseDto>>>> GetOwners()
         {
             try
             {
                 var owners = await _ownerService.GetOwnersAsync();
-                return Ok(owners);
+                return Ok(ApiResponse<List<OwnerResponseDto>>.Success(owners, "Owners retrieved successfully"));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error retrieving owners", error = ex.Message });
+                return StatusCode(500, ApiResponse<List<OwnerResponseDto>>.Error("Error retrieving owners", ex.Message));
             }
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<OwnerResponseDto>> GetOwnerById(string id)
+        public async Task<ActionResult<ApiResponse<OwnerResponseDto>>> GetOwnerById(string id)
         {
             try
             {
                 if (!MongoDB.Bson.ObjectId.TryParse(id, out _))
                 {
-                    return BadRequest(new { message = "Invalid Owner ID format" });
+                    return BadRequest(ApiResponse<OwnerResponseDto>.Error("Invalid Owner ID format"));
                 }
 
                 var owner = await _ownerService.GetOwnerByIdAsync(id);
 
                 if (owner == null)
                 {
-                    return NotFound(new { message = $"Owner with id {id} not found" });
+                    return NotFound(ApiResponse<OwnerResponseDto>.Error($"Owner with id {id} not found"));
                 }
 
-                return Ok(owner);
+                return Ok(ApiResponse<OwnerResponseDto>.Success(owner, "Owner retrieved successfully"));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error retrieving owner", error = ex.Message });
+                return StatusCode(500, ApiResponse<OwnerResponseDto>.Error("Error retrieving owner", ex.Message));
             }
         }
 
         [HttpPost]
-        [ProducesResponseType(typeof(OwnerResponseDto), 201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(500)]
-        public async Task<ActionResult<OwnerResponseDto>> CreateOwner([FromBody] OwnerCreateDto createDto)
+        public async Task<ActionResult<ApiResponse<OwnerResponseDto>>> CreateOwner([FromBody] OwnerCreateDto createDto)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    var errors = ModelState.GetErrors();
+                    return BadRequest(ApiResponse<OwnerResponseDto>.Error("Invalid model state", errors));
                 }
 
                 var owner = await _ownerService.CreateOwnerAsync(createDto);
                 
-                return CreatedAtAction(nameof(GetOwnerById), new { id = owner.Id }, owner);
+                return CreatedAtAction(nameof(GetOwnerById), new { id = owner.Id }, 
+                    ApiResponse<OwnerResponseDto>.Success(owner, "Owner created successfully"));
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error creating owner", error = ex.Message });
+                return StatusCode(500, ApiResponse<OwnerResponseDto>.Error("Error creating owner", ex.Message));
             }
         }
     }
 }
-
