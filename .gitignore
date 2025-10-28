@@ -19,6 +19,7 @@ launchSettings.json
 
 ## User-specific files
 *.rsuser
+appsettings.Development.json
 
 ## .NET Core
 project.lock.json
