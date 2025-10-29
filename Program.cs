@@ -1,9 +1,10 @@
 using MongoDB.Driver;
 using realtorAPI.Services;
+using realtorAPI.DTOs;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -28,13 +29,12 @@ if (!string.IsNullOrEmpty(mongoConnectionString) && !string.IsNullOrEmpty(mongoD
     var mongoDatabase = mongoClient.GetDatabase(mongoDatabaseName);
     
     builder.Services.AddSingleton(mongoDatabase);
-    builder.Services.AddScoped<PropertyService>();
-    builder.Services.AddScoped<OwnerService>();
+    builder.Services.AddScoped<IPropertyService, PropertyService>();
+    builder.Services.AddScoped<IOwnerService, OwnerService>();
 }
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -46,6 +46,29 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (ArgumentException ex)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+        await context.Response.WriteAsJsonAsync(ApiResponse<object>.Error(ex.Message));
+    }
+    catch (KeyNotFoundException ex)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+        await context.Response.WriteAsJsonAsync(ApiResponse<object>.Error(ex.Message));
+    }
+    catch (Exception ex)
+    {
+        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+        await context.Response.WriteAsJsonAsync(ApiResponse<object>.Error("Unexpected error", ex.Message));
+    }
+});
 app.UseAuthorization();
 app.MapControllers();
 

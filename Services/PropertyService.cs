@@ -4,7 +4,7 @@ using realtorAPI.DTOs;
 
 namespace realtorAPI.Services
 {
-    public class PropertyService
+    public class PropertyService : IPropertyService
     {
         private readonly IMongoCollection<Property> _properties;
         private readonly IMongoCollection<PropertyImage> _propertyImages;
@@ -47,26 +47,64 @@ namespace realtorAPI.Services
                 ? filterBuilder.And(filters) 
                 : filterBuilder.Empty;
 
-            var properties = await _properties.Find(combinedFilter).ToListAsync();
-
-            var result = new List<PropertyResponseDto>();
-
-            foreach (var property in properties)
+            var sortBuilder = Builders<Property>.Sort;
+            SortDefinition<Property> sort = filter.SortBy?.ToLower() switch
             {
-                var image = await _propertyImages
-                    .Find(pi => pi.IdProperty == property.IdProperty && pi.Enabled == true)
-                    .FirstOrDefaultAsync();
+                "price" => (filter.SortDir?.ToLower() == "desc" ? sortBuilder.Descending(p => p.Price) : sortBuilder.Ascending(p => p.Price)),
+                "year" => (filter.SortDir?.ToLower() == "desc" ? sortBuilder.Descending(p => p.Year) : sortBuilder.Ascending(p => p.Year)),
+                _ => (filter.SortDir?.ToLower() == "desc" ? sortBuilder.Descending(p => p.Name) : sortBuilder.Ascending(p => p.Name))
+            };
 
-                result.Add(new PropertyResponseDto
-                {
-                    Id = property.IdProperty,
-                    OwnerId = property.IdOwner,
-                    Name = property.Name,
-                    Address = property.Address,
-                    Price = property.Price,
-                    Image = image?.File
-                });
+            var shouldPaginate = filter.Page.HasValue || filter.PageSize.HasValue;
+            List<Property> properties;
+            if (shouldPaginate)
+            {
+                var page = (filter.Page ?? 1);
+                page = page <= 0 ? 1 : page;
+                var pageSize = (filter.PageSize ?? 20);
+                pageSize = pageSize <= 0 || pageSize > 100 ? 20 : pageSize;
+                var skip = (page - 1) * pageSize;
+
+                properties = await _properties
+                    .Find(combinedFilter)
+                    .Sort(sort)
+                    .Skip(skip)
+                    .Limit(pageSize)
+                    .ToListAsync();
             }
+            else
+            {
+                properties = await _properties
+                    .Find(combinedFilter)
+                    .Sort(sort)
+                    .ToListAsync();
+            }
+
+            if (properties.Count == 0)
+            {
+                return new List<PropertyResponseDto>();
+            }
+
+            var propertyIds = properties.Select(p => p.IdProperty).ToList();
+            var images = await _propertyImages
+                .Find(Builders<PropertyImage>.Filter.And(
+                    Builders<PropertyImage>.Filter.In(pi => pi.IdProperty, propertyIds),
+                    Builders<PropertyImage>.Filter.Eq(pi => pi.Enabled, true)))
+                .ToListAsync();
+
+            var propertyIdToImage = images
+                .GroupBy(i => i.IdProperty)
+                .ToDictionary(g => g.Key, g => g.First().File);
+
+            var result = properties.Select(property => new PropertyResponseDto
+            {
+                Id = property.IdProperty,
+                OwnerId = property.IdOwner,
+                Name = property.Name,
+                Address = property.Address,
+                Price = property.Price,
+                Image = propertyIdToImage.TryGetValue(property.IdProperty, out var file) ? file : null
+            }).ToList();
 
             return result;
         }

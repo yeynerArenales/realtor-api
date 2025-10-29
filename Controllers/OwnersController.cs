@@ -9,19 +9,19 @@ namespace realtorAPI.Controllers
     [Route("api/[controller]")]
     public class OwnersController : ControllerBase
     {
-        private readonly OwnerService _ownerService;
+        private readonly IOwnerService _ownerService;
 
-        public OwnersController(OwnerService ownerService)
+        public OwnersController(IOwnerService ownerService)
         {
             _ownerService = ownerService;
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<List<OwnerResponseDto>>>> GetOwners()
+        public async Task<ActionResult<ApiResponse<List<OwnerResponseDto>>>> GetOwners([FromQuery] int? page, [FromQuery] int? pageSize)
         {
             try
             {
-                var owners = await _ownerService.GetOwnersAsync();
+                var owners = await _ownerService.GetOwnersAsync(page, pageSize);
                 return Ok(ApiResponse<List<OwnerResponseDto>>.Success(owners, "Owners retrieved successfully"));
             }
             catch (Exception ex)

@@ -9,9 +9,9 @@ namespace realtorAPI.Controllers
     [Route("api/[controller]")]
     public class PropertiesController : ControllerBase
     {
-        private readonly PropertyService _propertyService;
+        private readonly IPropertyService _propertyService;
 
-        public PropertiesController(PropertyService propertyService)
+        public PropertiesController(IPropertyService propertyService)
         {
             _propertyService = propertyService;
         }
